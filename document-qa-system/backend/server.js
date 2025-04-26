@@ -6,6 +6,8 @@ import mongoose from 'mongoose';
 import path from 'path';
 import { uploadFileToR2 } from './utils/r2.js';
 import Anthropic from '@anthropic-ai/sdk';
+import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
+import { CohereClient } from 'cohere-ai';
 
 // Configure Fastify
 const fastify = Fastify({
@@ -85,7 +87,7 @@ fastify.post('/add-data', async (request, reply) => {
       apiKey: process.env.ANTHROPIC_API_KEY,
     });
 
-    // Use Anthropic to extract text and structure from the PDF
+    // Extract text and structure from the PDF
     const response = await anthropic.messages.create({
       model: 'claude-3-7-sonnet-20250219',
       max_tokens: 4000,
@@ -112,9 +114,18 @@ fastify.post('/add-data', async (request, reply) => {
 
     const extractedText = response.content[0].text;
 
+    // Split article text into chunks
+    const textSplitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 1000,
+      chunkOverlap: 200,
+    });
+
+    const chunks = await textSplitter.createDocuments([extractedText]);
+
     return {
       r2Url: r2Url,
       extractedText: extractedText,
+      chunks: chunks,
     };
   } catch (err) {
     console.log(err);

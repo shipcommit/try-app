@@ -1,17 +1,17 @@
 import mongoose from 'mongoose';
 
-const articleSchema = new mongoose.Schema(
+const documentVectorsSchema = new mongoose.Schema(
   {
-    url: {
+    documentId: {
       type: String,
       required: true,
     },
-    filename: {
+    textChunk: {
       type: String,
       required: true,
     },
-    text: {
-      type: String,
+    embeddings: {
+      type: [Number],
       required: true,
     },
     createdAt: {
@@ -24,6 +24,9 @@ const articleSchema = new mongoose.Schema(
   }
 );
 
-const Article = mongoose.model('Article', articleSchema);
+const DocumentVectors = mongoose.model(
+  'DocumentVectors',
+  documentVectorsSchema
+);
 
-export default Article;
+export default DocumentVectors;

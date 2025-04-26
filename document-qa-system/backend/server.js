@@ -9,8 +9,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { CohereClient } from 'cohere-ai';
 
-import Article from './models/Article.js';
-import ArticleVectors from './models/ArticleVectors.js';
+import Document from './models/Document.js';
+import DocumentVectors from './models/DocumentVectors.js';
 
 // Load environment variables
 dotenv.config();
@@ -66,8 +66,6 @@ start();
 fastify.get('/', function (request, reply) {
   reply.send({ hello: 'world' });
 });
-
-// Upload PDF
 
 // Add data
 fastify.post('/add-data', async (request, reply) => {
@@ -144,7 +142,7 @@ fastify.post('/add-data', async (request, reply) => {
     const embeddings = embedResponse.embeddings;
 
     // Create new article document
-    const article = new Article({
+    const article = new Document({
       url: r2Url,
       filename: data.filename,
       text: extractedText,
@@ -153,17 +151,17 @@ fastify.post('/add-data', async (request, reply) => {
     // Save article to database
     await article.save();
 
-    // Create and save ArticleVectors documents with embeddings for each chunk
+    // Create and save DocumentVectors documents with embeddings for each chunk
     const articleVectorsPromises = chunkTexts.map((chunk, index) => {
-      const articleVector = new ArticleVectors({
-        articleId: article._id.toString(),
+      const articleVector = new DocumentVectors({
+        documentId: article._id.toString(),
         textChunk: chunk,
         embeddings: embeddings[index],
       });
       return articleVector.save();
     });
 
-    // Wait for all ArticleVectors documents to be saved
+    // Wait for all DocumentVectors documents to be saved
     await Promise.all(articleVectorsPromises);
 
     return reply.code(201).send({
@@ -185,7 +183,7 @@ fastify.post('/add-data', async (request, reply) => {
 fastify.post('/query-rag', async (request, reply) => {
   try {
     const queryText = request.body.query;
-    const similarityThreshold = 0.75;
+    const similarityThreshold = 0.65;
 
     // Generate vector embeddings for the query
     const queryEmbedResponse = await cohere.embed({
@@ -197,10 +195,8 @@ fastify.post('/query-rag', async (request, reply) => {
 
     const queryEmbeddings = queryEmbedResponse.embeddings[0];
 
-    console.log('queryEmbeddings:', queryEmbeddings);
-
     // Find articles with similar embeddings
-    const similarChunks = await ArticleVectors.aggregate([
+    const similarChunks = await DocumentVectors.aggregate([
       {
         $vectorSearch: {
           index: 'vector_index',
@@ -227,6 +223,25 @@ fastify.post('/query-rag', async (request, reply) => {
       },
     ]);
 
+    // // Extract text and structure from the PDF
+    // const response = await anthropic.messages.create({
+    //   model: 'claude-3-7-sonnet-20250219',
+    //   max_tokens: 4000,
+    //   system:
+    //     'You are a helpful chatbot that helps employees with asking questions about company documents and receive accurate answers',
+    //   messages: [
+    //     {
+    //       role: 'user',
+    //       content: [
+    //         {
+    //           type: 'text',
+    //           text: query,
+    //         },
+    //       ],
+    //     },
+    //   ],
+    // });
+
     return reply.code(200).send({
       success: true,
       results: similarChunks,
@@ -240,22 +255,3 @@ fastify.post('/query-rag', async (request, reply) => {
     });
   }
 });
-
-// // Extract text and structure from the PDF
-// const response = await anthropic.messages.create({
-//   model: 'claude-3-7-sonnet-20250219',
-//   max_tokens: 4000,
-//   system:
-//     'You are a helpful chatbot that helps employees with asking questions about company documents and receive accurate answers',
-//   messages: [
-//     {
-//       role: 'user',
-//       content: [
-//         {
-//           type: 'text',
-//           text: query,
-//         },
-//       ],
-//     },
-//   ],
-// });

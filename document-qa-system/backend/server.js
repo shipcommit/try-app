@@ -5,6 +5,7 @@ import fastifyMultipart from '@fastify/multipart';
 import mongoose from 'mongoose';
 import path from 'path';
 import { uploadFileToR2 } from './utils/r2.js';
+import Anthropic from '@anthropic-ai/sdk';
 
 // Configure Fastify
 const fastify = Fastify({
@@ -77,8 +78,43 @@ fastify.post('/add-data', async (request, reply) => {
     const r2Result = await uploadFileToR2(fileBuffer, data.filename);
     const r2Url = `${process.env.CLOUDFLARE_R2_SUBDOMAIN}/${r2Result.filename}`;
 
+    // Convert buffer to base64
+    const base64PDF = fileBuffer.toString('base64');
+
+    const anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
+
+    // Use Anthropic to extract text and structure from the PDF
+    const response = await anthropic.messages.create({
+      model: 'claude-3-7-sonnet-20250219',
+      max_tokens: 4000,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: "Please extract all the text content from this PDF document. Include all text, tables, and captions for images. Mark page breaks with '--- Page X ---' where X is the page number. Also identify any tables, charts, or diagrams and describe their content briefly. Don't add any extra text that is not in the document, such as 'Extracted Text Content from PDF Document'",
+            },
+            {
+              type: 'document',
+              source: {
+                type: 'base64',
+                media_type: 'application/pdf',
+                data: base64PDF,
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    const extractedText = response.content[0].text;
+
     return {
       r2Url: r2Url,
+      extractedText: extractedText,
     };
   } catch (err) {
     console.log(err);

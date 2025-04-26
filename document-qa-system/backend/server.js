@@ -8,7 +8,9 @@ import { uploadFileToR2 } from './utils/r2.js';
 import Anthropic from '@anthropic-ai/sdk';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { CohereClient } from 'cohere-ai';
+
 import Article from './models/Article.js';
+import ArticleVectors from './models/ArticleVectors.js';
 
 // Load environment variables
 dotenv.config();
@@ -19,6 +21,11 @@ const fastify = Fastify({
 });
 
 fastify.register(fastifyMultipart);
+
+// Configure Anthropic
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
 
 // Configure Cohere
 const cohere = new CohereClient({
@@ -89,10 +96,6 @@ fastify.post('/add-data', async (request, reply) => {
     // Convert buffer to base64
     const base64PDF = fileBuffer.toString('base64');
 
-    const anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-
     // Extract text and structure from the PDF
     const response = await anthropic.messages.create({
       model: 'claude-3-7-sonnet-20250219',
@@ -135,6 +138,7 @@ fastify.post('/add-data', async (request, reply) => {
       texts: chunkTexts,
       model: 'embed-english-v3.0',
       input_type: 'search_document',
+      output_dimension: 1024,
     });
 
     const embeddings = embedResponse.embeddings;
@@ -144,14 +148,24 @@ fastify.post('/add-data', async (request, reply) => {
       url: r2Url,
       filename: data.filename,
       text: extractedText,
-      textChunks: chunkTexts,
-      embeddings: embeddings,
     });
 
     // Save article to database
     await article.save();
 
-    // Return success message with article id
+    // Create and save ArticleVectors documents with embeddings for each chunk
+    const articleVectorsPromises = chunkTexts.map((chunk, index) => {
+      const articleVector = new ArticleVectors({
+        articleId: article._id.toString(),
+        textChunk: chunk,
+        embeddings: embeddings[index],
+      });
+      return articleVector.save();
+    });
+
+    // Wait for all ArticleVectors documents to be saved
+    await Promise.all(articleVectorsPromises);
+
     return reply.code(201).send({
       success: true,
       message: 'Document uploaded and processed successfully',
@@ -169,5 +183,79 @@ fastify.post('/add-data', async (request, reply) => {
 
 // Query chat bot
 fastify.post('/query-rag', async (request, reply) => {
-  //
+  try {
+    const queryText = request.body.query;
+    const similarityThreshold = 0.75;
+
+    // Generate vector embeddings for the query
+    const queryEmbedResponse = await cohere.embed({
+      texts: [queryText],
+      model: 'embed-english-v3.0',
+      input_type: 'search_query',
+      output_dimension: 1024,
+    });
+
+    const queryEmbeddings = queryEmbedResponse.embeddings[0];
+
+    console.log('queryEmbeddings:', queryEmbeddings);
+
+    // Find articles with similar embeddings
+    const similarChunks = await ArticleVectors.aggregate([
+      {
+        $vectorSearch: {
+          index: 'vector_index',
+          queryVector: queryEmbeddings,
+          path: 'embeddings',
+          numCandidates: 100,
+          limit: 10,
+        },
+      },
+      {
+        $project: {
+          filename: 1,
+          chunk: '$textChunk',
+          score: { $meta: 'vectorSearchScore' },
+        },
+      },
+      {
+        $match: {
+          score: { $gte: similarityThreshold },
+        },
+      },
+      {
+        $limit: 5,
+      },
+    ]);
+
+    return reply.code(200).send({
+      success: true,
+      results: similarChunks,
+    });
+  } catch (err) {
+    console.log(err);
+    return reply.code(500).send({
+      success: false,
+      error: 'Error processing query',
+      details: err.message,
+    });
+  }
 });
+
+// // Extract text and structure from the PDF
+// const response = await anthropic.messages.create({
+//   model: 'claude-3-7-sonnet-20250219',
+//   max_tokens: 4000,
+//   system:
+//     'You are a helpful chatbot that helps employees with asking questions about company documents and receive accurate answers',
+//   messages: [
+//     {
+//       role: 'user',
+//       content: [
+//         {
+//           type: 'text',
+//           text: query,
+//         },
+//       ],
+//     },
+//   ],
+// });

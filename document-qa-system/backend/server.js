@@ -9,6 +9,9 @@ import Anthropic from '@anthropic-ai/sdk';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { CohereClient } from 'cohere-ai';
 
+// Load environment variables
+dotenv.config();
+
 // Configure Fastify
 const fastify = Fastify({
   logger: true,
@@ -16,8 +19,10 @@ const fastify = Fastify({
 
 fastify.register(fastifyMultipart);
 
-// Load environment variables
-dotenv.config();
+// Configure Cohere
+const cohere = new CohereClient({
+  token: process.env.COHERE_API_KEY,
+});
 
 // Connect to MongoDB
 async function connectToMongoDB() {
@@ -122,17 +127,26 @@ fastify.post('/add-data', async (request, reply) => {
 
     const chunks = await textSplitter.createDocuments([extractedText]);
 
+    // Create vector embeddings of each text chunk with Cohere
+    const chunkTexts = chunks.map((chunk) => chunk.pageContent);
+
+    const embedResponse = await cohere.embed({
+      texts: chunkTexts,
+      model: 'embed-english-v3.0',
+      input_type: 'search_document',
+    });
+
+    const embeddings = embedResponse.embeddings;
+
     return {
       r2Url: r2Url,
       extractedText: extractedText,
       chunks: chunks,
+      embeddings: embeddings,
     };
   } catch (err) {
     console.log(err);
   }
-
-  // Extract text from PDF
-  // Convert text to vector embeddings
 });
 
 // Query chat bot

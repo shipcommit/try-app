@@ -184,7 +184,7 @@ fastify.post('/add-data', async (request, reply) => {
 fastify.post('/query-rag', async (request, reply) => {
   try {
     const queryText = request.body.query;
-    const similarityThreshold = 0.65;
+    const similarityThreshold = 0.7;
 
     // Generate vector embeddings for the query
     const queryEmbedResponse = await cohere.embed({
@@ -227,7 +227,6 @@ fastify.post('/query-rag', async (request, reply) => {
     // Determine response based on vector search
     let answer = '';
     const filenamesArray = [];
-    let filenames = '';
     let chunks = similarChunks.map((chunk) => chunk.chunk).join('\n\n');
 
     console.log('chunks:', chunks);
@@ -243,6 +242,8 @@ fastify.post('/query-rag', async (request, reply) => {
           filenamesArray.push(chunk.filename);
         }
       });
+
+    console.log('filenamesArray:', filenamesArray);
 
     // Make request to LLM
     const response = await anthropic.messages.create({
@@ -286,14 +287,9 @@ fastify.post('/query-rag', async (request, reply) => {
 
     answer = `Here ${
       filenamesArray.length > 1 ? 'are the documents' : 'is the document'
-    } I found: ${filenamesArray.map(
-      (filename) =>
-        (filenames += `/n${filename}
+    } I found: ${filenamesArray.map((filename) => `/n${filename}`).join('')}
         
-        ${response.content[0].text}`)
-    )}`;
-
-    //>>> Handle multiple different document matches simultaneously
+      ${response.content[0].text}`;
 
     return reply.code(200).send({
       success: true,

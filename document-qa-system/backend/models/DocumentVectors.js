@@ -6,6 +6,10 @@ const documentVectorsSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    filename: {
+      type: String,
+      required: true,
+    },
     textChunk: {
       type: String,
       required: true,

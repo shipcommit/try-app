@@ -155,6 +155,7 @@ fastify.post('/add-data', async (request, reply) => {
     const articleVectorsPromises = chunkTexts.map((chunk, index) => {
       const articleVector = new DocumentVectors({
         documentId: article._id.toString(),
+        filename: data.filename,
         textChunk: chunk,
         embeddings: embeddings[index],
       });
@@ -242,10 +243,10 @@ fastify.post('/query-rag', async (request, reply) => {
     //   ],
     // });
 
-    return reply.code(200).send({
-      success: true,
-      results: similarChunks,
-    });
+    // return reply.code(200).send({
+    //   success: true,
+    //   results: similarChunks,
+    // });
   } catch (err) {
     console.log(err);
     return reply.code(500).send({

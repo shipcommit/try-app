@@ -249,14 +249,35 @@ fastify.post('/query-rag', async (request, reply) => {
       model: 'claude-3-7-sonnet-20250219',
       max_tokens: 4000,
       system:
-        'Create a 30 word summary of the information you will be provided.',
+        'Provide a short and simple answer based on the user question. You can use the "Database data" if necessary to answer the user question.',
       messages: [
         {
           role: 'user',
           content: [
             {
               type: 'text',
-              text: chunks,
+              text: `Database data: ${chunks}`,
+            },
+          ],
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `User question: ${queryText}`,
+            },
+          ],
+        },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `Names of file(s) found: ${filenamesArray
+                .map((filename) => filename)
+                .join('')}
+              The user already has a list of the filename(s), there is no need to list them again.`,
             },
           ],
         },
@@ -272,24 +293,7 @@ fastify.post('/query-rag', async (request, reply) => {
         ${response.content[0].text}`)
     )}`;
 
-    // // Make request to LLM
-    // const response = await anthropic.messages.create({
-    //   model: 'claude-3-7-sonnet-20250219',
-    //   max_tokens: 4000,
-    //   system:
-    //     'You are a helpful chatbot that helps employees with asking questions about company documents and receive accurate answers',
-    //   messages: [
-    //     {
-    //       role: 'user',
-    //       content: [
-    //         {
-    //           type: 'text',
-    //           text: answer,
-    //         },
-    //       ],
-    //     },
-    //   ],
-    // });
+    //>>> Handle multiple different document matches simultaneously
 
     return reply.code(200).send({
       success: true,

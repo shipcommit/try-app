@@ -8,6 +8,7 @@ import { uploadFileToR2 } from './utils/r2.js';
 import Anthropic from '@anthropic-ai/sdk';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { CohereClient } from 'cohere-ai';
+import Article from './models/Article.js';
 
 // Load environment variables
 dotenv.config();
@@ -102,7 +103,7 @@ fastify.post('/add-data', async (request, reply) => {
           content: [
             {
               type: 'text',
-              text: "Please extract all the text content from this PDF document. Include all text, tables, and captions for images. Mark page breaks with '--- Page X ---' where X is the page number. Also identify any tables, charts, or diagrams and describe their content briefly. Don't add any extra text that is not in the document, such as 'Extracted Text Content from PDF Document'",
+              text: "Please extract all the text content from this PDF document. Include all text, tables, and captions for images. Mark page breaks with '--- Beginning of page X ---' and '--- End of page X ---' where X is the page number. Also identify any tables, charts, or diagrams and describe their content briefly. Don't add any extra text that is not in the document, such as 'Extracted Text Content from PDF Document'",
             },
             {
               type: 'document',
@@ -138,15 +139,35 @@ fastify.post('/add-data', async (request, reply) => {
 
     const embeddings = embedResponse.embeddings;
 
-    return {
-      r2Url: r2Url,
-      extractedText: extractedText,
-      chunks: chunks,
+    // Create new article document
+    const article = new Article({
+      url: r2Url,
+      filename: data.filename,
+      text: extractedText,
+      textChunks: chunkTexts,
       embeddings: embeddings,
-    };
+    });
+
+    // Save article to database
+    await article.save();
+
+    // Return success message with article id
+    return reply.code(201).send({
+      success: true,
+      message: 'Document uploaded and processed successfully',
+      article: article,
+    });
   } catch (err) {
     console.log(err);
+    return reply.code(500).send({
+      success: false,
+      error: 'Error processing document',
+      details: err.message,
+    });
   }
 });
 
 // Query chat bot
+fastify.post('/query-rag', async (request, reply) => {
+  //
+});

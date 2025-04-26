@@ -224,7 +224,30 @@ fastify.post('/query-rag', async (request, reply) => {
       },
     ]);
 
-    // // Extract text and structure from the PDF
+    // Determine response based on vector search
+    let answer = '';
+    const filenamesArray = [];
+    let filenames = '';
+
+    if (similarChunks.length < 1) {
+      answer = 'Looks like there are no matching documents in the database.';
+    }
+
+    // Add each filename to an array and filter out duplicates
+    else
+      similarChunks.forEach((chunk) => {
+        if (!filenamesArray.includes(chunk.filename)) {
+          filenamesArray.push(chunk.filename);
+        }
+      });
+
+    answer = `Here ${
+      filenamesArray.length > 1 ? 'are the documents' : 'is the document'
+    } I found: ${filenamesArray.map(
+      (filename) => (filenames += `/n${filename}`)
+    )}`;
+
+    // // Make request to LLM
     // const response = await anthropic.messages.create({
     //   model: 'claude-3-7-sonnet-20250219',
     //   max_tokens: 4000,
@@ -236,17 +259,18 @@ fastify.post('/query-rag', async (request, reply) => {
     //       content: [
     //         {
     //           type: 'text',
-    //           text: query,
+    //           text: answer,
     //         },
     //       ],
     //     },
     //   ],
     // });
 
-    // return reply.code(200).send({
-    //   success: true,
-    //   results: similarChunks,
-    // });
+    return reply.code(200).send({
+      success: true,
+      //   results: similarChunks,
+      response: answer,
+    });
   } catch (err) {
     console.log(err);
     return reply.code(500).send({

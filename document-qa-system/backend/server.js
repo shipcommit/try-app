@@ -228,6 +228,9 @@ fastify.post('/query-rag', async (request, reply) => {
     let answer = '';
     const filenamesArray = [];
     let filenames = '';
+    let chunks = similarChunks.map((chunk) => chunk.chunk).join('\n\n');
+
+    console.log('chunks:', chunks);
 
     if (similarChunks.length < 1) {
       answer = 'Looks like there are no matching documents in the database.';
@@ -241,10 +244,32 @@ fastify.post('/query-rag', async (request, reply) => {
         }
       });
 
+    // Make request to LLM
+    const response = await anthropic.messages.create({
+      model: 'claude-3-7-sonnet-20250219',
+      max_tokens: 4000,
+      system:
+        'Create a 30 word summary of the information you will be provided.',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: chunks,
+            },
+          ],
+        },
+      ],
+    });
+
     answer = `Here ${
       filenamesArray.length > 1 ? 'are the documents' : 'is the document'
     } I found: ${filenamesArray.map(
-      (filename) => (filenames += `/n${filename}`)
+      (filename) =>
+        (filenames += `/n${filename}
+        
+        ${response.content[0].text}`)
     )}`;
 
     // // Make request to LLM
@@ -268,8 +293,8 @@ fastify.post('/query-rag', async (request, reply) => {
 
     return reply.code(200).send({
       success: true,
-      //   results: similarChunks,
       response: answer,
+      results: similarChunks,
     });
   } catch (err) {
     console.log(err);

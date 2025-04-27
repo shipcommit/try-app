@@ -312,7 +312,7 @@ fastify.post('/query-rag', async (request, reply) => {
       model: 'claude-3-7-sonnet-20250219',
       max_tokens: 4000,
       system:
-        'Provide a short and simple answer based on the user question. You can use the "Database data" if necessary to answer the user question.',
+        'Provide a short and simple answer based on the user question. You can use the "Database data" if necessary to answer the user question. Please answer in the langue of the user, if the user uses a language other than English.',
       messages: [
         {
           role: 'user',

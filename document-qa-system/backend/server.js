@@ -198,6 +198,49 @@ fastify.get('/documents', async (request, reply) => {
   }
 });
 
+// Delete document and its vectors
+fastify.delete('/document', async (request, reply) => {
+  try {
+    const { documentId } = request.body;
+
+    if (!documentId) {
+      return reply.code(400).send({
+        success: false,
+        error: 'Document ID is required',
+      });
+    }
+
+    // Delete the document
+    const deletedDocument = await Document.findByIdAndDelete(documentId);
+
+    if (!deletedDocument) {
+      return reply.code(404).send({
+        success: false,
+        error: 'Document not found',
+      });
+    }
+
+    // Delete all associated vector embeddings
+    const deletedVectors = await DocumentVectors.deleteMany({
+      documentId: documentId,
+    });
+
+    return reply.code(200).send({
+      success: true,
+      message: 'Document and associated vectors deleted successfully',
+      document: deletedDocument,
+      vectorsDeleted: deletedVectors.deletedCount,
+    });
+  } catch (error) {
+    console.error('Error deleting document:', error);
+    return reply.code(500).send({
+      success: false,
+      error: 'Error deleting document',
+      details: error.message,
+    });
+  }
+});
+
 // Query chat bot
 fastify.post('/query-rag', async (request, reply) => {
   try {

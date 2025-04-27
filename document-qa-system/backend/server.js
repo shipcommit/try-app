@@ -297,12 +297,21 @@ fastify.post('/query-rag', async (request, reply) => {
     }
 
     // Add each filename to an array and filter out duplicates
-    else
+    else {
       similarChunks.forEach((chunk) => {
         if (!filenamesArray.includes(chunk.filename)) {
           filenamesArray.push(chunk.filename);
         }
+
+        // for (const object of filenamesArray) {
+        //   if (object.filename === chunk.filename) {
+        //     break;
+        //   } else {
+        //     filenamesArray.push(chunk.filename);
+        //   }
+        // }
       });
+    }
 
     console.log('filenamesArray:', filenamesArray);
 
@@ -349,17 +358,14 @@ fastify.post('/query-rag', async (request, reply) => {
     if (filenamesArray.length < 1) {
       answer = 'There is no document matching your question.';
     } else {
-      answer = `Here ${
-        filenamesArray.length > 1 ? 'are the documents' : 'is the document'
-      } I found: ${filenamesArray.map((filename) => `/n${filename}`).join('')}
-          
-        ${response.content[0].text}`;
+      answer = response.content[0].text;
     }
 
     return reply.code(200).send({
       success: true,
       response: answer,
       results: similarChunks,
+      citations: filenamesArray,
     });
   } catch (err) {
     console.log(err);

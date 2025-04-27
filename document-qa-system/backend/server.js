@@ -199,9 +199,9 @@ fastify.get('/documents', async (request, reply) => {
 });
 
 // Delete document and its vectors
-fastify.delete('/document', async (request, reply) => {
+fastify.delete('/document/:documentId', async (request, reply) => {
   try {
-    const { documentId } = request.body;
+    const { documentId } = request.params;
 
     if (!documentId) {
       return reply.code(400).send({

@@ -245,7 +245,7 @@ fastify.delete('/document/:documentId', async (request, reply) => {
 fastify.post('/query-rag', async (request, reply) => {
   try {
     const queryText = request.body.query;
-    const similarityThreshold = 0.65;
+    const similarityThreshold = 0.67;
 
     // Generate vector embeddings for the query
     const queryEmbedResponse = await cohere.embed({

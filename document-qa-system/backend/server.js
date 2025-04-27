@@ -346,11 +346,15 @@ fastify.post('/query-rag', async (request, reply) => {
       ],
     });
 
-    answer = `Here ${
-      filenamesArray.length > 1 ? 'are the documents' : 'is the document'
-    } I found: ${filenamesArray.map((filename) => `/n${filename}`).join('')}
-        
-      ${response.content[0].text}`;
+    if (filenamesArray.length < 1) {
+      answer = 'There is no document matching your question.';
+    } else {
+      answer = `Here ${
+        filenamesArray.length > 1 ? 'are the documents' : 'is the document'
+      } I found: ${filenamesArray.map((filename) => `/n${filename}`).join('')}
+          
+        ${response.content[0].text}`;
+    }
 
     return reply.code(200).send({
       success: true,

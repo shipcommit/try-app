@@ -302,14 +302,6 @@ fastify.post('/query-rag', async (request, reply) => {
         if (!filenamesArray.includes(chunk.filename)) {
           filenamesArray.push(chunk.filename);
         }
-
-        // for (const object of filenamesArray) {
-        //   if (object.filename === chunk.filename) {
-        //     break;
-        //   } else {
-        //     filenamesArray.push(chunk.filename);
-        //   }
-        // }
       });
     }
 

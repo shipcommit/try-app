@@ -180,6 +180,24 @@ fastify.post('/add-data', async (request, reply) => {
   }
 });
 
+// Get all documents
+fastify.get('/documents', async (request, reply) => {
+  try {
+    const documents = await Document.find({})
+      .select('_id url filename createdAt')
+      .sort({ createdAt: -1 });
+
+    return reply.code(200).send(documents);
+  } catch (error) {
+    console.error('Error fetching documents:', error);
+    return reply.code(500).send({
+      success: false,
+      error: 'Error fetching documents',
+      details: error.message,
+    });
+  }
+});
+
 // Query chat bot
 fastify.post('/query-rag', async (request, reply) => {
   try {
